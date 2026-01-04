@@ -39,23 +39,37 @@ jobs:
       - name: Sync with upstream and check for changes
         id: sync
         run: |
-          BEFORE_HASH=$(git rev-parse HEAD)
+          # Function to extract version variables from Makefile for comparison
+          get_makefile_vars() {
+            grep -E "^(PKG_VERSION|PKG_SOURCE_VERSION|SMARTDNS_WEBUI_VERSION|SMARTDNS_WEBUI_SOURCE_VERSION)[[:space:]]*:?=" Makefile | sort
+          }
+
+          echo "==> Capturing current Makefile variables..."
+          BEFORE_VARS=$(get_makefile_vars)
+          echo "$BEFORE_VARS"
+
           git remote add upstream https://github.com/pymumu/openwrt-smartdns.git
           git fetch upstream
 
           # Save current HEAD to restore .github later
           CURRENT_HEAD=$(git rev-parse HEAD)
 
+          echo "==> Resetting to upstream/master..."
           git reset --hard upstream/master
 
           # Restore .github directory from the original commit
           git checkout $CURRENT_HEAD -- .github/
 
-          AFTER_HASH=$(git rev-parse HEAD)
-          if [ "$BEFORE_HASH" != "$AFTER_HASH" ]; then
+          echo "==> Capturing upstream Makefile variables..."
+          AFTER_VARS=$(get_makefile_vars)
+          echo "$AFTER_VARS"
+
+          if [ "$BEFORE_VARS" != "$AFTER_VARS" ]; then
             echo "changed=true" >> $GITHUB_OUTPUT
+            echo "==> Changes detected in Makefile versions."
           else
             echo "changed=false" >> $GITHUB_OUTPUT
+            echo "==> No changes in Makefile versions."
           fi
 
       - name: Download and Extract SDK
